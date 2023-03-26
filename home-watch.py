@@ -1,18 +1,32 @@
 import Adafruit_DHT
+import prometheus_client
 from time import sleep
 import datetime
 
 sensor = Adafruit_DHT.AM2302
 pin = 12
+metrics_port = 9101
 
-try:
+temprature_gauge = prometheus_client.Gauge('current_temprature', 'Current temprature in celcius')
+humidity_gauge = prometheus_client.Gauge('current_humidity', 'Current humidity as a percentage value')
+
+def read_sensor():
+    dt = datetime.datetime.now()
+    humidity = temprature = None
+    humidity, temprature = Adafruit_DHT.read_retry(sensor, pin)
+    if humidity != None and temprature != None:
+        temprature_gauge.set(temprature)
+        humidity_gauge.set(humidity)
+        print("{0} - Humidity: {1}, Temprature: {2}\n".format(dt, humidity, temprature))
+    else:
+        print("Failed to read sensor")
+
+
+def main():
+    prometheus_client.start_http_server(metrics_port)
     while True:
-        hum = None
-        temp = None
-        while hum == None or temp == None:
-            hum, temp = Adafruit_DHT.read_retry(sensor, pin)
-        dt = datetime.datetime.now()
-        print("{0} - Humidity: {1}, Temprature: {2}\n".format(dt, hum, temp))
+        read_sensor()
         sleep(10)
-except KeyboardInterrupt:
-    exit(0)
+
+if __name__ == "__main__":
+    main()
