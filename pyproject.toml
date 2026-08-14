@@ -1,0 +1,18 @@
+[project]
+name = "home-watch"
+version = "0.2.0"
+description = "Expose DHT22/AM2302 room temperature and humidity as Prometheus metrics"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+dependencies = [
+    "prometheus-client>=0.16",
+    # Raspberry Pi only: the GPIO stack has no macOS/Windows wheels, so the
+    # marker keeps `uv lock` resolvable when developing off-device.
+    "adafruit-circuitpython-dht>=4.0; sys_platform == 'linux'",
+    "adafruit-blinka>=8.0; sys_platform == 'linux'",
+]
+
+[tool.uv]
+# This repo is a single script, not an installable package.
+package = false

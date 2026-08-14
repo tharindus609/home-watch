@@ -1,2 +1,8 @@
 # python virtualenv
 venv/
+.venv/
+__pycache__/
+*.pyc
+
+# runtime output
+home-watch.log
