@@ -5,17 +5,18 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# GPIO bit-banging needs root for /dev/mem and stable timing.
-User=root
-WorkingDirectory=/home/pi/src/home-watch
-Environment=HOME_WATCH_PIN=12
+# The default (kernel dht11) backend reads world-readable sysfs attributes, so
+# it does not need root. Switch User to root if you fall back to HOME_WATCH_BACKEND=gpio,
+# which bit-bangs the GPIO line and needs /dev/mem.
+User=piroot
+WorkingDirectory=/home/piroot/home-watch
 Environment=HOME_WATCH_METRICS_PORT=9101
 Environment=HOME_WATCH_INTERVAL=15
-ExecStart=/usr/local/bin/uv run --frozen home-watch.py
+ExecStart=/home/piroot/.local/bin/uv run --frozen home-watch.py
 Restart=always
 RestartSec=5
-# Nice the process down slightly: the driver busy-waits while sampling.
-Nice=5
+NoNewPrivileges=yes
+PrivateTmp=yes
 
 [Install]
 WantedBy=multi-user.target

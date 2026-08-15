@@ -5,12 +5,19 @@ description = "Expose DHT22/AM2302 room temperature and humidity as Prometheus m
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
-dependencies = [
-    "prometheus-client>=0.16",
-    # Raspberry Pi only: the GPIO stack has no macOS/Windows wheels, so the
-    # marker keeps `uv lock` resolvable when developing off-device.
+# The default backend talks to the kernel dht11 driver through sysfs, so the
+# only runtime dependency is the metrics client.
+dependencies = ["prometheus-client>=0.16"]
+
+[project.optional-dependencies]
+# Fallback userspace GPIO stack, for hosts that cannot use the kernel overlay:
+#   uv run --extra gpio home-watch.py
+# rpi-lgpio provides the `RPi.GPIO` module that Blinka imports but does not
+# declare; the original RPi.GPIO does not build on Python 3.13.
+gpio = [
     "adafruit-circuitpython-dht>=4.0; sys_platform == 'linux'",
     "adafruit-blinka>=8.0; sys_platform == 'linux'",
+    "rpi-lgpio>=0.6; sys_platform == 'linux'",
 ]
 
 [tool.uv]
