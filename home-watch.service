@@ -1,22 +1,18 @@
+# systemd *user* unit: install to ~/.config/systemd/user/ (see README).
+# It must be a user unit for %h to mean your home directory — in a system unit
+# systemd resolves %h to /root regardless of any User= setting.
 [Unit]
 Description=home-watch temperature/humidity Prometheus exporter
-After=network-online.target
-Wants=network-online.target
 
 [Service]
 Type=simple
-# The default (kernel dht11) backend reads world-readable sysfs attributes, so
-# it does not need root. Switch User to root if you fall back to HOME_WATCH_BACKEND=gpio,
-# which bit-bangs the GPIO line and needs /dev/mem.
-User=piroot
-WorkingDirectory=/home/piroot/home-watch
+WorkingDirectory=%h/home-watch
+ExecStart=%h/.local/bin/uv run --frozen home-watch.py
 Environment=HOME_WATCH_METRICS_PORT=9101
 Environment=HOME_WATCH_INTERVAL=15
-ExecStart=/home/piroot/.local/bin/uv run --frozen home-watch.py
 Restart=always
 RestartSec=5
 NoNewPrivileges=yes
-PrivateTmp=yes
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

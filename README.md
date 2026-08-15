@@ -34,8 +34,10 @@ the sensor was detected:
 grep dht11 /sys/bus/iio/devices/iio:device*/name
 ```
 
-That should print a path such as `/sys/bus/iio/devices/iio:device0/name:dht11`.
-If it prints nothing, see [Troubleshooting](#troubleshooting).
+That should print something like `/sys/bus/iio/devices/iio:device0/name:dht11@18`.
+The `@18` is the device tree unit address and varies with the GPIO you chose;
+the script matches on the `dht11` prefix, so any suffix is fine. If the command
+prints nothing, see [Troubleshooting](#troubleshooting).
 
 **2. Install [uv](https://docs.astral.sh/uv/).** Python itself is handled by uv;
 there is no virtualenv to create or activate.
@@ -94,22 +96,35 @@ overlay a hard error instead of a silent fallback.
 ## Running as a service
 
 `start.sh` is fine for a quick manual start, but it will not come back after a
-crash or a reboot. Use the bundled systemd unit instead:
+crash or a reboot. Use the bundled systemd unit instead. It is a *user* unit, so
+it needs no root and no editing — `%h` expands to your home directory:
 
 ```bash
-sudo cp home-watch.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now home-watch
+mkdir -p ~/.config/systemd/user
+cp home-watch.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now home-watch
+
+# start at boot without having to log in first
+sudo loginctl enable-linger "$USER"
 ```
 
-Check `User`, `WorkingDirectory` and the `ExecStart` path to uv in the unit file
-first — they assume the repo is at `/home/piroot/home-watch` and that uv was
-installed for that user (`which uv` will tell you where it actually is).
+Do not skip the `enable-linger` line: without it the user manager only runs
+while you are logged in, so the exporter stops when your session ends.
 
 ```bash
-systemctl status home-watch     # health
-journalctl -u home-watch -f     # follow the logs
+systemctl --user status home-watch     # health
+journalctl --user -u home-watch -f     # follow the logs
 ```
+
+The unit assumes the repo is at `~/home-watch` and uv at `~/.local/bin/uv`,
+which is where uv's install script puts it. If the service fails to start with
+status 203/EXEC, `which uv` will tell you where yours actually is.
+
+If you fall back to the userspace `gpio` backend it needs root, which a user
+unit cannot provide — install it into `/etc/systemd/system/` as a system unit
+instead, and spell out absolute paths, since systemd resolves `%h` to `/root` in
+system units no matter what `User=` says.
 
 ## Scraping with Prometheus
 

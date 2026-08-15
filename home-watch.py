@@ -66,7 +66,9 @@ def find_iio_device():
                 name = handle.read().strip()
         except OSError:
             continue
-        if name == "dht11":  # the dht11 driver also drives the DHT22/AM2302
+        # The name comes from the device tree node, so it carries a unit address
+        # (e.g. "dht11@18"). The dht11 driver also drives the DHT22/AM2302.
+        if name.split("@")[0] == "dht11":
             return path
     return None
 
