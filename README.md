@@ -86,12 +86,27 @@ All settings are environment variables, so nothing needs editing in the script.
 | `HOME_WATCH_INTERVAL` | `15` | Seconds between readings |
 | `HOME_WATCH_MAX_ATTEMPTS` | `3` | Retries per reading before it counts as a failure |
 | `HOME_WATCH_BACKEND` | `auto` | `iio` (kernel driver), `gpio` (userspace), or `auto` |
+| `HOME_WATCH_IIO_PATH` | *(auto-detected)* | Read this sysfs directory instead of searching for the sensor |
 | `HOME_WATCH_PIN` | `12` | BCM pin — only used by the `gpio` backend |
 | `HOME_WATCH_LOG_LEVEL` | `INFO` | Python log level |
 
 `auto` uses the kernel driver when the overlay is loaded and falls back to the
 userspace GPIO backend otherwise. Set `HOME_WATCH_BACKEND=iio` to make a missing
 overlay a hard error instead of a silent fallback.
+
+By default the sensor is found by scanning `/sys/bus/iio/devices/iio:device*`
+for one whose `name` reads `dht11`, ignoring any `@<address>` suffix.
+`HOME_WATCH_IIO_PATH` skips that scan and reads a directory you name outright:
+
+```bash
+HOME_WATCH_IIO_PATH=/sys/bus/iio/devices/iio:device0 uv run --frozen home-watch.py
+```
+
+That is useful when you have several IIO devices and want to pin the choice, or
+when the numbering moves between boots and you would rather bind by a stable
+`/dev/iio:device*` symlink. It also makes the script testable off-device: point
+it at any directory containing `in_temp_input` and `in_humidityrelative_input`
+files holding milli-units, and it will read them as if they were the sensor.
 
 ## Running as a service
 
@@ -174,11 +189,15 @@ from Python instead. That stack is not installed by default — it pulls in 18
 extra packages and is markedly less reliable, since userspace has to meet the
 sensor's microsecond timing:
 
+It also needs a compiler toolchain, because one of its dependencies has no
+prebuilt wheel for the Pi and is built from source at install time:
+
 ```bash
+sudo apt install -y python3-dev liblgpio-dev swig
 uv run --extra gpio home-watch.py     # needs root for /dev/mem
 ```
 
-Two notes on that path, both of which cost time to rediscover:
+Three notes on that path, all of which cost time to rediscover:
 
 - `adafruit-blinka` imports `RPi.GPIO` but does not declare it as a dependency,
   so it fails at runtime with `ModuleNotFoundError: No module named 'RPi'`.
@@ -186,6 +205,11 @@ Two notes on that path, both of which cost time to rediscover:
   RPi.GPIO 0.7.1 calls `PyEval_InitThreads()`, which was removed in that
   release, so the C extension will not compile. The `gpio` extra therefore
   depends on `rpi-lgpio`, a drop-in replacement that provides the same module.
+- `rpi-lgpio` in turn pulls in `lgpio`, which ships only an sdist and compiles a
+  SWIG binding against the system lgpio library — hence `swig`, `python3-dev`
+  and `liblgpio-dev` above. Raspberry Pi OS's prebuilt `python3-lgpio` apt
+  package does not help here, since uv's virtualenv does not see system
+  site-packages.
 
 The original `Adafruit_DHT` library this project started with is no longer
 supported at all: it has been archived by Adafruit, and its `setup.py` reads
